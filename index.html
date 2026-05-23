@@ -5,20 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SG Pools Ticket Scanner</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f4f4f9; padding: 20px; }
-        #camera-box { width: 100%; max-width: 400px; height: 300px; background: #000; margin: 0 auto; border-radius: 12px; overflow: hidden; position: relative; }
+        body { font-family: -apple-system, sans-serif; text-align: center; background: #f4f4f9; padding: 20px; color: #333; }
+        #camera-box { width: 100%; max-width: 400px; height: 300px; background: #000; margin: 0 auto; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: rgba(0, 255, 0, 0.7); animation: scan 2s linear infinite; }
+        .scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: #00ff00; animation: scan 2.5s linear infinite; }
         @keyframes scan { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
-        button { background: #007bff; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 8px; margin-top: 15px; cursor: pointer; width: 100%; max-width: 400px; }
-        #result-panel { margin-top: 20px; padding: 15px; background: white; border-radius: 12px; display: none; text-align: left; max-width: 370px; margin-left: auto; margin-right: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { background: #007bff; color: white; border: none; padding: 14px; font-size: 16px; font-weight: bold; border-radius: 8px; margin-top: 15px; cursor: pointer; width: 100%; max-width: 400px; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+        #result-panel, #winnings-panel { margin-top: 20px; padding: 15px; background: white; border-radius: 12px; display: none; text-align: left; max-width: 370px; margin-left: auto; margin-right: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 
     <h2>🎫 SG Ticket Scanner</h2>
-    <p>Align your 4D/TOTO ticket inside the camera box below:</p>
+    <p style="color:gray; font-size:14px;">Process and track your lottery sheets on-device.</p>
 
     <div id="camera-box">
         <video id="webcam" autoplay playsinline></video>
@@ -28,12 +29,104 @@
     <button id="snap-btn">📷 Snap & Scan Ticket</button>
 
     <div id="result-panel">
-        <h3>🔍 Scanned Extracted Text:</h3>
-        <textarea id="output-text" style="width:100%; height:100px; font-family:monospace;"></textarea>
-        <p style="font-size:12px; color:gray;">Verify the numbers above before saving.</p>
-        <button id="save-btn" style="background:#28a745;">💾 Save to My Phone Storage</button>
+        <h3 style="margin-top:0;">🔍 Parsed Engine Output:</h3>
+        <textarea id="output-text" style="width:96%; height:100px; font-family:monospace; padding:2%; border:1px solid #ccc; border-radius:6px;"></textarea>
+        <button id="save-btn" style="background:#28a745;">💾 Save to Device Storage</button>
+    </div>
+    
+    <button id="check-btn" style="background:#ffc107; color: #111; margin-top:25px;">💰 Check Active Saved Bets</button>
+
+    <div id="winnings-panel" style="border: 2px solid #28a745; background: #f4faf6;">
+        <h3 style="color: #1e7e34; margin-top: 0;">🎉 Payout Calculation Matrix:</h3>
+        <div id="winnings-breakdown" style="font-size: 15px; line-height: 1.5;"></div>
     </div>
 
-    <script src="app.js"></script>
+    <script>
+        const video = document.getElementById('webcam');
+        const snapBtn = document.getElementById('snap-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const checkBtn = document.getElementById('check-btn');
+        const resultPanel = document.getElementById('result-panel');
+        const winningsPanel = document.getElementById('winnings-panel');
+        const outputText = document.getElementById('output-text');
+        const winningsBreakdown = document.getElementById('winnings-breakdown');
+
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { console.log("Camera initializing fallback logic execution: " + err); });
+
+        snapBtn.addEventListener('click', async () => {
+            snapBtn.innerText = "⚡ Analyzing Image Matrix...";
+            snapBtn.disabled = true;
+            winningsPanel.style.display = "none";
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            try {
+                const result = await Tesseract.recognize(canvas, 'eng');
+                outputText.value = result.data.text;
+                resultPanel.style.display = 'block';
+            } catch (error) {
+                alert("Processing Exception: " + error);
+            } finally {
+                snapBtn.innerText = "📷 Snap & Scan Ticket";
+                snapBtn.disabled = false;
+            }
+        });
+
+        saveBtn.addEventListener('click', () => {
+            const numbersFound = outputText.value.match(/\b\d{4}\b/g) || [];
+            if(numbersFound.length === 0) {
+                alert("No 4-digit numeric blocks recognized. Please revise text inputs manually.");
+                return;
+            }
+            let savedBets = JSON.parse(localStorage.getItem('my_tracked_bets')) || [];
+            savedBets.push({ numbers: numbersFound });
+            localStorage.setItem('my_tracked_bets', JSON.stringify(savedBets));
+            alert(`Registered: [${numbersFound.join(', ')}] directly onto your device cache memory.`);
+        });
+
+        checkBtn.addEventListener('click', async () => {
+            const myBetsData = JSON.parse(localStorage.getItem('my_tracked_bets')) || [];
+            if (myBetsData.length === 0) {
+                alert("Device storage manifest empty. Record a transaction row first.");
+                return;
+            }
+            try {
+                const response = await fetch('./data/4d_latest.json');
+                const liveResults = await response.json();
+                
+                let totalPayout = 0;
+                let detailsHtml = `<b>Database Sync Date:</b> ${liveResults.draw_date || "2026-05-20"}<br><br>`;
+
+                myBetsData.forEach((ticket) => {
+                    ticket.numbers.forEach((num) => {
+                        let payout = 0;
+                        let tier = "";
+                        if (num === liveResults.first_prize) { payout = 2000; tier = "1st Prize 🏆"; }
+                        else if (num === liveResults.second_prize) { payout = 1000; tier = "2nd Prize 🥈"; }
+                        else if (num === liveResults.third_prize) { payout = 490; tier = "3rd Prize 🥉"; }
+                        
+                        if (payout > 0) {
+                            totalPayout += payout;
+                            detailsHtml += `🟢 Block <b>${num}</b> hit <b>${tier}</b>! +$${payout}<br>`;
+                        } else {
+                            detailsHtml += `🔴 Block <b>${num}</b>: No Match Found<br>`;
+                        }
+                    });
+                });
+
+                detailsHtml += `<br><hr><b>Total Balance Calculated: SGD $${totalPayout}.00</b>`;
+                winningsBreakdown.innerHTML = detailsHtml;
+                winningsPanel.style.display = "block";
+            } catch (err) {
+                alert("Data stream retrieval error: " + err);
+            }
+        });
+    </script>
 </body>
 </html>
