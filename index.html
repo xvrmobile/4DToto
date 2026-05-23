@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SG Pools Ticket Scanner</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f4f4f9; padding: 20px; }
+        #camera-box { width: 100%; max-width: 400px; height: 300px; background: #000; margin: 0 auto; border-radius: 12px; overflow: hidden; position: relative; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: rgba(0, 255, 0, 0.7); animation: scan 2s linear infinite; }
+        @keyframes scan { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
+        button { background: #007bff; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 8px; margin-top: 15px; cursor: pointer; width: 100%; max-width: 400px; }
+        #result-panel { margin-top: 20px; padding: 15px; background: white; border-radius: 12px; display: none; text-align: left; max-width: 370px; margin-left: auto; margin-right: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+
+    <h2>🎫 SG Ticket Scanner</h2>
+    <p>Align your 4D/TOTO ticket inside the camera box below:</p>
+
+    <div id="camera-box">
+        <video id="webcam" autoplay playsinline></video>
+        <div class="scan-line"></div>
+    </div>
+
+    <button id="snap-btn">📷 Snap & Scan Ticket</button>
+
+    <div id="result-panel">
+        <h3>🔍 Scanned Extracted Text:</h3>
+        <textarea id="output-text" style="width:100%; height:100px; font-family:monospace;"></textarea>
+        <p style="font-size:12px; color:gray;">Verify the numbers above before saving.</p>
+        <button id="save-btn" style="background:#28a745;">💾 Save to My Phone Storage</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
