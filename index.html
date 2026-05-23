@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SG Pools Ticket Scanner</title>
+    <title>SG Pools Smart Ticket Scanner</title>
     <style>
         body { font-family: -apple-system, sans-serif; text-align: center; background: #f4f4f9; padding: 20px; color: #333; }
         #camera-box { width: 100%; max-width: 400px; height: 300px; background: #000; margin: 0 auto; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
@@ -13,13 +13,14 @@
         button { background: #007bff; color: white; border: none; padding: 14px; font-size: 16px; font-weight: bold; border-radius: 8px; margin-top: 15px; cursor: pointer; width: 100%; max-width: 400px; transition: 0.2s; }
         button:active { transform: scale(0.98); }
         #result-panel, #winnings-panel { margin-top: 20px; padding: 15px; background: white; border-radius: 12px; display: none; text-align: left; max-width: 370px; margin-left: auto; margin-right: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .hint-text { color: gray; font-size: 12px; margin-top: 4px; display: block; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 
-    <h2>🎫 SG Ticket Scanner</h2>
-    <p style="color:gray; font-size:14px;">Process and track your lottery sheets on-device.</p>
+    <h2>🎫 SG Smart Ticket Scanner</h2>
+    <p style="color:gray; font-size:14px;">Process and track custom Big/Small bets on-device.</p>
 
     <div id="camera-box">
         <video id="webcam" autoplay playsinline></video>
@@ -29,9 +30,10 @@
     <button id="snap-btn">📷 Snap & Scan Ticket</button>
 
     <div id="result-panel">
-        <h3 style="margin-top:0;">🔍 Parsed Engine Output:</h3>
+        <h3 style="margin-top:0;">🔍 Parsed Ticket Layout:</h3>
         <textarea id="output-text" style="width:96%; height:100px; font-family:monospace; padding:2%; border:1px solid #ccc; border-radius:6px;"></textarea>
-        <button id="save-btn" style="background:#28a745;">💾 Save to Device Storage</button>
+        <span class="hint-text">Format: [4D Number] [BigBet]B [SmallBet]S (e.g., 7699 2B 1S)</span>
+        <button id="save-btn" style="background:#28a745; margin-top:10px;">💾 Save Bets to Device</button>
     </div>
     
     <button id="check-btn" style="background:#ffc107; color: #111; margin-top:25px;">💰 Check Active Saved Bets</button>
@@ -51,12 +53,10 @@
         const outputText = document.getElementById('output-text');
         const winningsBreakdown = document.getElementById('winnings-breakdown');
 
-        // Start back camera feed layout stream
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
             .then(stream => { video.srcObject = stream; })
-            .catch(err => { console.log("Camera engine startup restriction: " + err); });
+            .catch(err => { console.log("Camera engine connection error: " + err); });
 
-        // Capture static photo frame and execute on-device Tesseract OCR
         snapBtn.addEventListener('click', async () => {
             snapBtn.innerText = "⚡ Analyzing Image Matrix...";
             snapBtn.disabled = true;
@@ -73,81 +73,126 @@
                 outputText.value = result.data.text;
                 resultPanel.style.display = 'block';
             } catch (error) {
-                alert("OCR Parse Error: " + error);
+                alert("OCR Reading Exception: " + error);
             } finally {
                 snapBtn.innerText = "📷 Snap & Scan Ticket";
                 snapBtn.disabled = false;
             }
         });
 
-        // Save matched 4D text streams cleanly into smartphone local storage array
+        // Smart Extraction Layer: Parses 4D number along with Big (B) and Small (S) amounts
         saveBtn.addEventListener('click', () => {
-            const numbersFound = outputText.value.match(/\b\d{4}\b/g) || [];
-            if(numbersFound.length === 0) {
-                alert("No 4-digit numeric blocks recognized. Please revise inputs manually.");
+            const rawText = outputText.value;
+            
+            // Regex to find a 4-digit number followed by optional spacing and numbers ending with B or S
+            // Matches formats like: "7699 2B 1S", "7699 5B", "7699 1S"
+            const lineRegex = /(\b\d{4}\b)[^\n]*?(\d+)\s*B|[^\n]*?(\d+)\s*S/gi;
+            
+            // To keep it foolproof, we can split text into lines and check for individual blocks
+            const lines = rawText.split('\n');
+            let ticketsSaved = [];
+
+            lines.forEach(line => {
+                const numMatch = line.match(/\b\d{4}\b/);
+                if (numMatch) {
+                    const fourDNum = numMatch[0];
+                    
+                    // Look for numbers attached to B and S flags
+                    const bigMatch = line.match(/(\d+)\s*B/i);
+                    const smallMatch = line.match(/(\d+)\s*S/i);
+                    
+                    const bigAmt = bigMatch ? parseInt(bigMatch[1]) : 1;   // Default to $1 if not explicitly written
+                    const smallAmt = smallMatch ? parseInt(smallMatch[1]) : 0; // Default to $0 Small
+                    
+                    ticketsSaved.push({
+                        number: fourDNum,
+                        big: bigAmt,
+                        small: smallAmt
+                    });
+                }
+            });
+
+            if(ticketsSaved.length === 0) {
+                alert("Could not extract clean 4D layouts. Type your bets manually below the camera using: 7699 2B 1S");
                 return;
             }
+
             let savedBets = JSON.parse(localStorage.getItem('my_tracked_bets')) || [];
-            savedBets.push({ numbers: numbersFound });
+            savedBets = savedBets.concat(ticketsSaved);
             localStorage.setItem('my_tracked_bets', JSON.stringify(savedBets));
-            alert(`Registered: [${numbersFound.join(', ')}] directly onto your device memory.`);
+            
+            let alertMsg = "Saved Bets:\n";
+            ticketsSaved.forEach(t => alertMsg += `• ${t.number} [Big: $${t.big}, Small: $${t.small}]\n`);
+            alert(alertMsg);
         });
 
-        // Comprehensive checking logic for all 23 winning numbers
+        // Dynamic Multi-Tier Math Calculator
         checkBtn.addEventListener('click', async () => {
             const myBetsData = JSON.parse(localStorage.getItem('my_tracked_bets')) || [];
             if (myBetsData.length === 0) {
-                alert("Device storage manifest empty. Record a transaction row first.");
+                alert("Device storage empty. Scan or write down a real bet first.");
                 return;
             }
             try {
-                // Fetch the live scraped results file generated by your server bot
                 const response = await fetch('./data/4d_latest.json');
                 const liveResults = await response.json();
                 
-                // --- HARDCODED WINNING TARGET PARAMETERS FOR TESTING SIMULATION ---
+                // --- HARDCODED WINNING PARAMETERS FOR TESTING SIMULATION ---
                 liveResults.first_prize = "7699";
                 liveResults.second_prize = "9517";
                 liveResults.third_prize = "8945";
                 liveResults.starters = ["1117", "2873", "3075", "3722"];
                 liveResults.consolations = ["0582", "0706", "2066", "2314"];
-                liveResults.draw_date = "2026-05-20";
-                // ------------------------------------------------------------------
+                liveResults.draw_date = "2026-05-23";
+                // -----------------------------------------------------------
                 
                 let totalPayout = 0;
                 let detailsHtml = `<b>Database Sync Date:</b> ${liveResults.draw_date}<br><br>`;
 
                 myBetsData.forEach((ticket) => {
-                    ticket.numbers.forEach((num) => {
-                        let cleanNum = String(num).trim();
-                        let payout = 0;
-                        let tier = "";
-                        
-                        // Structure clean array values for robust matching loops
-                        let starList = (liveResults.starters || []).map(v => String(v).trim());
-                        let consList = (liveResults.consolations || []).map(v => String(v).trim());
-                        
-                        // complete 23-number cross-checking condition sets ($1 Big Bet values)
-                        if (cleanNum === String(liveResults.first_prize).trim()) { payout = 2000; tier = "1st Prize 🏆"; }
-                        else if (cleanNum === String(liveResults.second_prize).trim()) { payout = 1000; tier = "2nd Prize 🥈"; }
-                        else if (cleanNum === String(liveResults.third_prize).trim()) { payout = 490; tier = "3rd Prize 🥉"; }
-                        else if (starList.includes(cleanNum)) { payout = 250; tier = "Starter Prize 📈"; }
-                        else if (consList.includes(cleanNum)) { payout = 60; tier = "Consolation Prize 🎯"; }
-                        
-                        if (payout > 0) {
-                            totalPayout += payout;
-                            detailsHtml += `🟢 Block <b>${cleanNum}</b> hit <b>${tier}</b>! +$${payout}<br>`;
-                        } else {
-                            detailsHtml += `🔴 Block <b>${cleanNum}</b>: No Match Found<br>`;
-                        }
-                    });
+                    // Check handle for both legacy array format and new object format safely
+                    let cleanNum = String(ticket.number || ticket.numbers?.[0] || "").trim();
+                    if(!cleanNum) return;
+
+                    let bigStake = ticket.big !== undefined ? ticket.big : 1;
+                    let smallStake = ticket.small !== undefined ? ticket.small : 0;
+                    
+                    let bigPayout = 0;
+                    let smallPayout = 0;
+                    let tier = "";
+                    
+                    let starList = (liveResults.starters || []).map(v => String(v).trim());
+                    let consList = (liveResults.consolations || []).map(v => String(v).trim());
+                    
+                    // 1. Evaluate Big Bet Returns ($2000, $1000, $490, $250, $60 matching structure)
+                    if (cleanNum === String(liveResults.first_prize).trim()) { bigPayout = bigStake * 2000; tier = "1st Prize 🏆"; }
+                    else if (cleanNum === String(liveResults.second_prize).trim()) { bigPayout = bigStake * 1000; tier = "2nd Prize 🥈"; }
+                    else if (cleanNum === String(liveResults.third_prize).trim()) { bigPayout = bigStake * 490; tier = "3rd Prize 🥉"; }
+                    else if (starList.includes(cleanNum)) { bigPayout = bigStake * 250; tier = "Starter Prize 📈"; }
+                    else if (consList.includes(cleanNum)) { bigPayout = bigStake * 60; tier = "Consolation Prize 🎯"; }
+
+                    // 2. Evaluate Small Bet Returns ($3000, $2000, $800 matching structure)
+                    if (cleanNum === String(liveResults.first_prize).trim()) { smallPayout = smallStake * 3000; }
+                    else if (cleanNum === String(liveResults.second_prize).trim()) { smallPayout = smallStake * 2000; }
+                    else if (cleanNum === String(liveResults.third_prize).trim()) { smallPayout = smallStake * 800; }
+
+                    let combinedWin = bigPayout + smallPayout;
+                    
+                    if (combinedWin > 0) {
+                        totalPayout += combinedWin;
+                        detailsHtml += `🟢 Block <b>${cleanNum}</b> hit <b>${tier}</b>!<br>`;
+                        if(bigPayout > 0) detailsHtml += ` ↳ Big Win ($${bigStake} Bet): +$${bigPayout}<br>`;
+                        if(smallPayout > 0) detailsHtml += ` ↳ Small Win ($${smallStake} Bet): +$${smallPayout}<br>`;
+                    } else {
+                        detailsHtml += `🔴 Block <b>${cleanNum}</b> ($${bigStake}B/$${smallStake}S): No Match<br>`;
+                    }
                 });
 
                 detailsHtml += `<br><hr><b>Total Balance Calculated: SGD $${totalPayout}.00</b>`;
                 winningsBreakdown.innerHTML = detailsHtml;
                 winningsPanel.style.display = "block";
             } catch (err) {
-                alert("Data stream retrieval error: " + err);
+                alert("Calculations engine failure: " + err);
             }
         });
     </script>
