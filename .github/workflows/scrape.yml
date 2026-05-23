@@ -2,9 +2,8 @@ name: SG Pools Scraper & Telegram Notifier
 
 on:
   schedule:
-    # Runs at 7:45 PM Singapore Time on Wednesday, Saturday, and Sunday
     - cron: '45 11 * * 3,6,0'
-  workflow_dispatch: # Allows you to test it manually with a button click
+  workflow_dispatch:
 
 jobs:
   run-automation:
@@ -24,7 +23,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests beautifulsoup4
 
-    # HERE IS THE STEP FROM YOUR PROMPT:
     - name: Run Scraper and Check Wins
       env:
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
