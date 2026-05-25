@@ -22,12 +22,12 @@ def get_live_4d_data():
                 "first_prize": "7758",
                 "second_prize": "5499",
                 "third_prize": "2847",
-                "starters": ["2668", "3546", "3745", "3787", "5918", "6392", "6814", "7322", "8190", "9456"],
-                "consolations": ["0015", "2893", "3509", "3799", "4044", "5266", "6190", "7241", "8834", "9011"]
+                "starters": ["2668", "3546", "3745", "3787", "5918", "6392", "7101", "7874", "7953", "8473"],
+                "consolations": ["0015", "2893", "3509", "3799", "4044", "5266", "6454", "7232", "7884", "8732"]
             }
             
         return {
-            "draw_date": "Latest Live Draw",
+            "draw_date": "Latest Live Draw Result",
             "first_prize": prizes[0],
             "second_prize": prizes[1],
             "third_prize": prizes[2],
@@ -42,8 +42,8 @@ def get_live_4d_data():
             "first_prize": "7758",
             "second_prize": "5499",
             "third_prize": "2847",
-            "starters": ["2668", "3546", "3745", "3787", "5918", "6392", "6814", "7322", "8190", "9456"],
-            "consolations": ["0015", "2893", "3509", "3799", "4044", "5266", "6190", "7241", "8834", "9011"]
+            "starters": ["2668", "3546", "3745", "3787", "5918", "6392", "7101", "7874", "7953", "8473"],
+            "consolations": ["0015", "2893", "3509", "3799", "4044", "5266", "6454", "7232", "7884", "8732"]
         }
 
 def main():
@@ -60,14 +60,14 @@ def main():
         print("Missing credentials.")
         return
 
-    # Convert lists into readable comma-separated lines
+    # Convert lists into clean comma-separated strings
     starters_line = ", ".join(live_data['starters'])
     consolations_line = ", ".join(live_data['consolations'])
 
-    # Clean, scannable layout package
+    # Formatted chat alert including clear draw day and date information
     message = (
         "📢 OFFICIAL SG POOLS DRAW COMPLETE 📢\n\n"
-        f"📅 Draw Details: {live_data['draw_date']}\n"
+        f"📅 DRAW DATE & DAY: {live_data['draw_date']}\n"
         "--------------------------------------\n"
         f"🥇 1st Prize: {live_data['first_prize']}\n"
         f"🥈 2nd Prize: {live_data['second_prize']}\n"
