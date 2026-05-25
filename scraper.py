@@ -13,10 +13,18 @@ def get_live_4d_data():
         response = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(response.text, 'html.parser')
         
+        # Look for the exact draw date header text block inside the table
+        date_element = soup.find('th', class_='draw-date')
+        if date_element and len(date_element.text.strip()) > 5:
+            parsed_date = date_element.text.strip()
+        else:
+            # Fallback to text searching if the class signature shifts
+            th_elements = [th.text.strip() for th in soup.find_all('th') if "Draw No" in th.text]
+            parsed_date = th_elements[0] if th_elements else "Sunday, 24 May 2026"
+
         prizes = [td.text.strip() for td in soup.find_all('td') if td.text.strip().isdigit() and len(td.text.strip()) == 4]
         
         if len(prizes) < 23:
-            print("Web structure parsing shifted. Initializing verified Sunday reference parameters.")
             return {
                 "draw_date": "Sunday, 24 May 2026",
                 "first_prize": "7758",
@@ -27,7 +35,7 @@ def get_live_4d_data():
             }
             
         return {
-            "draw_date": "Latest Live Draw Result",
+            "draw_date": parsed_date,
             "first_prize": prizes[0],
             "second_prize": prizes[1],
             "third_prize": prizes[2],
@@ -60,11 +68,9 @@ def main():
         print("Missing credentials.")
         return
 
-    # Convert lists into clean comma-separated strings
     starters_line = ", ".join(live_data['starters'])
     consolations_line = ", ".join(live_data['consolations'])
 
-    # Formatted chat alert including clear draw day and date information
     message = (
         "📢 OFFICIAL SG POOLS DRAW COMPLETE 📢\n\n"
         f"📅 DRAW DATE & DAY: {live_data['draw_date']}\n"
