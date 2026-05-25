@@ -137,15 +137,7 @@
                 const response = await fetch('./data/4d_latest.json');
                 const liveResults = await response.json();
                 
-                // --- HARDCODED WINNING PARAMETERS FOR TESTING SIMULATION ---
-                liveResults.first_prize = "7699";
-                liveResults.second_prize = "9517";
-                liveResults.third_prize = "8945";
-                liveResults.starters = ["1117", "2873", "3075", "3722"];
-                liveResults.consolations = ["0582", "0706", "2066", "2314"];
-                liveResults.draw_date = "2026-05-23";
-                // -----------------------------------------------------------
-                
+                      
                 let totalPayout = 0;
                 let detailsHtml = `<b>Database Sync Date:</b> ${liveResults.draw_date}<br><br>`;
 
